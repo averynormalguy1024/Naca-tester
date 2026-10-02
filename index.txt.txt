@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NACA Airfoil Aerodynamic & Wind Tunnel Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f8fafc;
+        }
+        
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glow-effect {
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.12);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Header Navigation -->
+    <header class="glass-panel sticky top-0 z-50 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-cyan-500/10 p-2 rounded-lg border border-cyan-500/30 text-cyan-400">
+                <i class="fa-solid fa-wind text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 bg-clip-text text-transparent">
+                    AeroFlow Universal
+                </h1>
+                <p class="text-xs text-slate-400">Interactive Airfoil & Wind Tunnel CFD Simulator</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-4">
+            <button id="theoryBtn" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition flex items-center gap-2 border border-slate-700">
+                <i class="fa-solid fa-book-open text-cyan-400"></i> Math & Physics Formulas
+            </button>
+            <div class="h-4 w-px bg-slate-800"></div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+                Potential Engine Active
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Content Grid -->
+    <main class="flex-1 max-w-[1920px] w-full mx-auto p-4 space-y-4">
+
+        <!-- TOP SECTION: Simulation Canvas & Telemetry HUD -->
+        <section class="glass-panel rounded-xl p-2 relative min-h-[460px] h-[55vh] flex flex-col overflow-hidden glow-effect border border-slate-800">
+            <canvas id="flowCanvas" class="w-full h-full bg-slate-950 rounded-lg cursor-grab active:cursor-grabbing flex-1"></canvas>
+            
+            <!-- Telemetry Overlay HUD -->
+            <div class="absolute top-4 left-4 pointer-events-none flex flex-col gap-1.5">
+                <div class="bg-slate-900/90 backdrop-blur border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 flex items-center gap-4 shadow-xl">
+                    <div><span class="text-slate-400">Airfoil:</span> <span id="hudProfile" class="text-cyan-400 font-bold code-font">NACA 2412</span></div>
+                    <div class="w-px h-3 bg-slate-700"></div>
+                    <div><span class="text-slate-400">C<sub>L</sub>:</span> <span id="hudCl" class="text-cyan-400 font-bold code-font">0.52</span></div>
+                    <div class="w-px h-3 bg-slate-700"></div>
+                    <div><span class="text-slate-400">C<sub>D</sub>:</span> <span id="hudCd" class="text-cyan-400 font-bold code-font">0.0082</span></div>
+                    <div class="w-px h-3 bg-slate-700"></div>
+                    <div><span class="text-slate-400">L/D:</span> <span id="hudLd" class="text-emerald-400 font-bold code-font">63.4</span></div>
+                    <div class="w-px h-3 bg-slate-700"></div>
+                    <div><span class="text-slate-400">Mode:</span> <span id="hudMode" class="text-amber-400 font-bold code-font">Free Airflow</span></div>
+                </div>
+            </div>
+
+            <!-- Canvas Controls Overlay -->
+            <div class="absolute bottom-4 right-4 flex gap-2">
+                <button onclick="resetZoom()" class="bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow" title="Reset View">
+                    <i class="fa-solid fa-compress text-cyan-400"></i> Reset View
+                </button>
+            </div>
+
+            <!-- Pressure Gradient Scale Legend -->
+            <div class="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg p-2 text-[10px] text-slate-400 flex items-center gap-2">
+                <span>Low Pressure (-C<sub>p</sub>)</span>
+                <div class="w-28 h-2 rounded bg-gradient-to-r from-blue-500 via-cyan-300 via-emerald-400 to-red-500"></div>
+                <span>High Pressure (+C<sub>p</sub>)</span>
+            </div>
+        </section>
+
+        <!-- MIDDLE SECTION: Control Dashboard -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            
+            <!-- Direct NACA Typing Input Box Card -->
+            <div class="lg:col-span-4 glass-panel rounded-xl p-4 space-y-3">
+                <h2 class="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-keyboard text-cyan-400"></i> Universal NACA Airfoil Input
+                </h2>
+
+                <div class="space-y-2">
+                    <label class="text-xs text-slate-400 block">Type any NACA 4, 5, or 6-Series designation:</label>
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <input type="text" id="nacaInput" value="2412" placeholder="e.g. 0012, 23012, 63-210" 
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-cyan-400 font-bold code-font focus:border-cyan-500 focus:outline-none uppercase tracking-wider">
+                            <div id="validTag" class="absolute right-2 top-2.5 text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-check"></i> Valid
+                            </div>
+                        </div>
+                        <button onclick="applyNacaInput()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-xs font-medium transition shadow flex items-center gap-1.5">
+                            <i class="fa-solid fa-play"></i> Apply
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Presets -->
+                <div>
+                    <span class="text-[11px] text-slate-400 block mb-1">Quick Presets:</span>
+                    <div class="flex flex-wrap gap-1.5 text-xs">
+                        <button onclick="setPreset('0012')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 border border-slate-700 code-font">NACA 0012</button>
+                        <button onclick="setPreset('2412')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 border border-slate-700 code-font">NACA 2412</button>
+                        <button onclick="setPreset('4415')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 border border-slate-700 code-font">NACA 4415</button>
+                        <button onclick="setPreset('23012')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 border border-slate-700 code-font">NACA 23012</button>
+                        <button onclick="setPreset('63-210')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 border border-slate-700 code-font">NACA 63-210</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow Environment & Wind Tunnel Mode Card -->
+            <div class="lg:col-span-5 glass-panel rounded-xl p-4 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-cyan-400"></i> Flow Parameters & Environment
+                    </h2>
+
+                    <!-- Wind Tunnel Toggle Button -->
+                    <button id="btnWindTunnel" onclick="toggleWindTunnel()" class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500 transition flex items-center gap-2">
+                        <i class="fa-solid fa-vial text-amber-400"></i> Wind Tunnel Mode
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">AoA (&alpha;):</span>
+                            <span id="valAoA" class="text-cyan-400 code-font">4.0&deg;</span>
+                        </div>
+                        <input type="range" id="inputAoA" min="-10" max="20" step="0.5" value="4" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400" oninput="updateFlowParams()">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">Velocity (V<sub>&infin;</sub>):</span>
+                            <span id="valVel" class="text-cyan-400 code-font">50 m/s</span>
+                        </div>
+                        <input type="range" id="inputVel" min="10" max="150" step="5" value="50" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400" oninput="updateFlowParams()">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">Reynolds (Re):</span>
+                            <span id="valRe" class="text-cyan-400 code-font">3.4e6</span>
+                        </div>
+                        <input type="range" id="inputRe" min="0.5" max="10" step="0.1" value="3.4" class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400" oninput="updateFlowParams()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Display Toggles Card -->
+            <div class="lg:col-span-3 glass-panel rounded-xl p-4 space-y-2">
+                <h2 class="text-xs font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-eye text-cyan-400"></i> Render Overlays
+                </h2>
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <label class="flex items-center gap-2 p-1.5 rounded bg-slate-900/40 border border-slate-800 cursor-pointer hover:border-slate-700">
+                        <input type="checkbox" id="chkParticles" checked class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                        <span class="text-slate-300">Particles</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-1.5 rounded bg-slate-900/40 border border-slate-800 cursor-pointer hover:border-slate-700">
+                        <input type="checkbox" id="chkStreamlines" checked class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                        <span class="text-slate-300">Streamlines</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-1.5 rounded bg-slate-900/40 border border-slate-800 cursor-pointer hover:border-slate-700">
+                        <input type="checkbox" id="chkHeatmap" checked class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                        <span class="text-slate-300">Pressure</span>
+                    </label>
+                    <label class="flex items-center gap-2 p-1.5 rounded bg-slate-900/40 border border-slate-800 cursor-pointer hover:border-slate-700">
+                        <input type="checkbox" id="chkVectors" class="rounded border-slate-700 text-cyan-500 focus:ring-0">
+                        <span class="text-slate-300">Vectors</span>
+                    </label>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- BOTTOM SECTION: Dynamic Aerodynamic Charts -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Chart 1: Pressure Distribution -->
+            <div class="glass-panel rounded-xl p-3 flex flex-col h-52">
+                <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                    <span>Pressure Distribution (-C<sub>p</sub>)</span>
+                    <i class="fa-solid fa-chart-line text-cyan-400"></i>
+                </h3>
+                <div class="flex-1 relative">
+                    <canvas id="cpChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Velocity Profile -->
+            <div class="glass-panel rounded-xl p-3 flex flex-col h-52">
+                <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                    <span>Surface Velocity Ratio (V / V<sub>&infin;</sub>)</span>
+                    <i class="fa-solid fa-gauge text-emerald-400"></i>
+                </h3>
+                <div class="flex-1 relative">
+                    <canvas id="velChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 3: Lift Curve -->
+            <div class="glass-panel rounded-xl p-3 flex flex-col h-52">
+                <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                    <span>Lift Curve (C<sub>L</sub> vs &alpha;)</span>
+                    <i class="fa-solid fa-arrow-up-right-dots text-purple-400"></i>
+                </h3>
+                <div class="flex-1 relative">
+                    <canvas id="clAlphaChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 4: Drag Polar -->
+            <div class="glass-panel rounded-xl p-3 flex flex-col h-52">
+                <h3 class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                    <span>Drag Polar (C<sub>L</sub> vs C<sub>D</sub>)</span>
+                    <i class="fa-solid fa-circle-nodes text-amber-400"></i>
+                </h3>
+                <div class="flex-1 relative">
+                    <canvas id="polarChart"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Calculation Summary Footer Strip -->
+        <section class="glass-panel rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+            <div class="border-l-2 border-cyan-500 pl-3">
+                <span class="text-slate-400 block">Total Lift Force (L):</span>
+                <span id="calcLift" class="text-sm font-bold text-slate-100 code-font">0.00 N/m</span>
+            </div>
+            <div class="border-l-2 border-cyan-500 pl-3">
+                <span class="text-slate-400 block">Total Drag Force (D):</span>
+                <span id="calcDrag" class="text-sm font-bold text-slate-100 code-font">0.00 N/m</span>
+            </div>
+            <div class="border-l-2 border-cyan-500 pl-3">
+                <span class="text-slate-400 block">Center of Pressure (X<sub>cp</sub>):</span>
+                <span id="calcXcp" class="text-sm font-bold text-slate-100 code-font">0.25 c</span>
+            </div>
+            <div class="border-l-2 border-cyan-500 pl-3">
+                <span class="text-slate-400 block">Pitching Moment (C<sub>m,c/4</sub>):</span>
+                <span id="calcCm" class="text-sm font-bold text-slate-100 code-font">-0.052</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Mathematical Breakdown Modal -->
+    <div id="theoryModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="glass-panel bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <h2 class="text-base font-bold text-cyan-400 flex items-center gap-2">
+                    <i class="fa-solid fa-square-root-variable"></i> Aerodynamic Governing Equations & Calculation Methodology
+                </h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6 text-slate-300 text-xs leading-relaxed">
+                
+                <!-- Aerodynamic Calculation Process -->
+                <div>
+                    <h3 class="text-sm font-semibold text-white mb-2 text-cyan-300 border-b border-slate-800 pb-1">
+                        1. NACA Geometry Generation
+                    </h3>
+                    <p class="mb-2">For a standard NACA 4-Digit Series (e.g., NACA 2412 where m = 0.02, p = 0.4, t = 0.12):</p>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-cyan-400 overflow-x-auto mb-2">
+                        y_t = 5 &middot; t &middot; [0.2969 &middot; &Sqrt;x - 0.1260 &middot; x - 0.3516 &middot; x<sup>2</sup> + 0.2843 &middot; x<sup>3</sup> - 0.1015 &middot; x<sup>4</sup>]
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-cyan-400 overflow-x-auto">
+                        y_c = (m / p<sup>2</sup>) &middot; (2px - x<sup>2</sup>) &nbsp; [for x &lt; p] &emsp;|&emsp; y_c = [m / (1-p)<sup>2</sup>] &middot; [(1-2p) + 2px - x<sup>2</sup>] &nbsp; [for x &ge; p]
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm font-semibold text-white mb-2 text-cyan-300 border-b border-slate-800 pb-1">
+                        2. Potential Circulation & Lift Slope (C<sub>L</sub>)
+                    </h3>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-cyan-400 overflow-x-auto mb-2">
+                        C<sub>L, ideal</sub> = 2 &middot; &pi; &middot; (&alpha;<sub>rad</sub> + 2 &middot; m<sub>max</sub>)
+                    </div>
+                    <p>High angle-of-attack stall is non-linearly modeled as a decay factor f<sub>stall</sub>(&alpha;):</p>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-cyan-400 overflow-x-auto mt-1">
+                        C<sub>L</sub> = C<sub>L, ideal</sub> &middot; max(0.2, 1.0 - ((|&alpha;| - 12) / 8)<sup>2</sup>)
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm font-semibold text-white mb-2 text-cyan-300 border-b border-slate-800 pb-1">
+                        3. Drag Coefficient Breakdown (C<sub>D</sub>)
+                    </h3>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-cyan-400 overflow-x-auto">
+                        C<sub>D,0</sub> = 0.006 + 0.01 &middot; (m<sub>max</sub>)<sup>2</sup> &emsp;|&emsp; C<sub>D,i</sub> = C<sub>L</sub><sup>2</sup> / (&pi; &middot; 8.5) &emsp;|&emsp; C<sub>D</sub> = C<sub>D,0</sub> + C<sub>D,i</sub>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm font-semibold text-white mb-2 text-cyan-300 border-b border-slate-800 pb-1">
+                        4. Pressure Coefficient (C<sub>p</sub>) & Integrated Forces
+                    </h3>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-cyan-400 overflow-x-auto mb-2">
+                        C<sub>p</sub>(x) = 1 - (V(x) / V<sub>&infin;</sub>)<sup>2</sup> &emsp;|&emsp; Lift = C<sub>L</sub> &middot; (&frac12; &middot; &rho; &middot; V<sup>2</sup>) &middot; c &emsp;|&emsp; Drag = C<sub>D</sub> &middot; (&frac12; &middot; &rho; &middot; V<sup>2</sup>) &middot; c
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-cyan-400 overflow-x-auto">
+                        X<sub>cp</sub> = 0.25 - 0.10 &middot; (C<sub>L</sub> - 0.2) &emsp;|&emsp; C<sub>m, c/4</sub> = -0.05 - 0.2 &middot; m<sub>max</sub>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm font-semibold text-white mb-2 text-amber-300 border-b border-slate-800 pb-1">
+                        5. Wind Tunnel Wall Interference Model
+                    </h3>
+                    <p class="mb-2">In wind tunnel mode, upper and lower solid walls enforce a zero normal velocity boundary condition (v = 0), increasing local effective velocity via stream tube constriction:</p>
+                    <div class="bg-slate-950 p-3 rounded border border-slate-800 font-mono text-amber-400 overflow-x-auto">
+                        V<sub>tunnel</sub> = V<sub>&infin;</sub> &middot; (1 + &tau; &middot; (t / H)<sup>2</sup>) &emsp;|&emsp; C<sub>L, tunnel</sub> = C<sub>L</sub> &middot; 1.08 &emsp;|&emsp; C<sub>D, tunnel</sub> = C<sub>D</sub> &middot; 1.12
+                    </div>
+                </div>
+
+                <!-- Comprehensive Reynolds Number Reference Table -->
+                <div>
+                    <h3 class="text-sm font-semibold text-white mb-2 text-cyan-300 border-b border-slate-800 pb-1">
+                        6. Comprehensive Reynolds Number (Re) Reference Guide
+                    </h3>
+                    <p class="mb-3">Reynolds number formula: <span class="code-font text-cyan-400">Re = (&rho; &middot; V &middot; c) / &mu; = (V &middot; c) / &nu;</span></p>
+                    
+                    <div class="overflow-x-auto rounded border border-slate-800">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-950 text-cyan-400 border-b border-slate-800">
+                                    <th class="p-2 border-r border-slate-800">Vehicle / Flight Regime</th>
+                                    <th class="p-2 border-r border-slate-800">Chord (c)</th>
+                                    <th class="p-2 border-r border-slate-800">Speed (V)</th>
+                                    <th class="p-2 border-r border-slate-800">Reynolds Number (Re)</th>
+                                    <th class="p-2">Dominant Aerodynamic Behavior</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 bg-slate-900/40">
+                                <tr>
+                                    <td class="p-2 border-r border-slate-800 font-medium text-slate-200">Micro Air Vehicles / Insects</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">0.01–0.05 m</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">1–10 m/s</td>
+                                    <td class="p-2 border-r border-slate-800 code-font text-amber-400">1e3 – 5e4</td>
+                                    <td class="p-2 text-slate-400">Laminar flow, separation bubbles (LSB), high skin friction.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-800 font-medium text-slate-200">RC Models / Small Drones</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">0.10–0.25 m</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">10–30 m/s</td>
+                                    <td class="p-2 border-r border-slate-800 code-font text-amber-400">1e5 – 5e5</td>
+                                    <td class="p-2 text-slate-400">Transitional flow, boundary layer sensitive to roughness.</td>
+                                </tr>
+                                <tr class="bg-cyan-500/10">
+                                    <td class="p-2 border-r border-slate-800 font-medium text-cyan-300">Wind Tunnel Models (Simulator Default)</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">0.15–0.40 m</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">20–80 m/s</td>
+                                    <td class="p-2 border-r border-slate-800 code-font text-cyan-300 font-bold">5e5 – 3.5e6</td>
+                                    <td class="p-2 text-slate-300">Mixed laminar-turbulent boundary layer transition.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-800 font-medium text-slate-200">General Aviation (e.g., Cessna)</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">1.20–1.60 m</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">40–70 m/s</td>
+                                    <td class="p-2 border-r border-slate-800 code-font text-amber-400">3e6 – 8e6</td>
+                                    <td class="p-2 text-slate-400">Fully developed turbulent flow, optimum L/D performance.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-800 font-medium text-slate-200">Commercial Jet Airliners</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">3.00–7.00 m</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">200–250 m/s</td>
+                                    <td class="p-2 border-r border-slate-800 code-font text-amber-400">2e7 – 6e7</td>
+                                    <td class="p-2 text-slate-400">Turbulent boundary layer, high wing loading, transonic shock interactions.</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 border-r border-slate-800 font-medium text-slate-200">Utility Wind Turbine Blades</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">1.50–3.50 m</td>
+                                    <td class="p-2 border-r border-slate-800 code-font">30–90 m/s</td>
+                                    <td class="p-2 border-r border-slate-800 code-font text-amber-400">3e6 – 1.5e7</td>
+                                    <td class="p-2 text-slate-400">Thick profiles (NACA 63-series), high structural and stall tolerance.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-900/50 flex justify-end">
+                <button onclick="closeModal()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg text-xs transition">
+                    Close Breakdown
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Script Implementation -->
+    <script>
+        // State Management
+        let currentNacaCode = "2412";
+        let isWindTunnel = false;
+
+        let airfoilUpper = [];
+        let airfoilLower = [];
+        let airfoilCamber = [];
+
+        let alpha = 4.0;
+        let vInf = 50;
+        let reynolds = 3.4e6;
+
+        // Interactive Viewport State
+        let panX = 0;
+        let panY = 0;
+        let zoom = 1.0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        // Dynamic Particles
+        const particles = [];
+        const NUM_PARTICLES = 320;
+
+        // Chart References
+        let cpChartInstance, velChartInstance, clAlphaChartInstance, polarChartInstance;
+
+        // Initialize Application
+        window.addEventListener('load', () => {
+            initCanvas();
+            initCharts();
+            applyNacaInput();
+            initParticles();
+            requestAnimationFrame(renderLoop);
+
+            document.getElementById('theoryBtn').onclick = () => document.getElementById('theoryModal').classList.remove('hidden');
+        });
+
+        function closeModal() {
+            document.getElementById('theoryModal').classList.add('hidden');
+        }
+
+        // Wind Tunnel Mode Toggle
+        function toggleWindTunnel() {
+            isWindTunnel = !isWindTunnel;
+            const btn = document.getElementById('btnWindTunnel');
+            const hudMode = document.getElementById('hudMode');
+
+            if (isWindTunnel) {
+                btn.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/50 transition flex items-center gap-2 shadow-lg shadow-amber-500/10";
+                hudMode.innerText = "Wind Tunnel Test Section";
+                hudMode.className = "text-amber-400 font-bold code-font";
+            } else {
+                btn.className = "px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:border-amber-500 transition flex items-center gap-2";
+                hudMode.innerText = "Free Airflow";
+                hudMode.className = "text-cyan-400 font-bold code-font";
+            }
+            updateCalculationsAndCharts();
+        }
+
+        function setPreset(code) {
+            document.getElementById('nacaInput').value = code;
+            applyNacaInput();
+        }
+
+        // Universal NACA Parser & Profile Generator
+        function applyNacaInput() {
+            const rawCode = document.getElementById('nacaInput').value.trim().toUpperCase();
+            const validTag = document.getElementById('validTag');
+
+            if (parseNacaCode(rawCode)) {
+                currentNacaCode = rawCode;
+                validTag.innerHTML = `<i class="fa-solid fa-check"></i> Valid`;
+                validTag.className = "absolute right-2 top-2.5 text-[10px] text-emerald-400 font-semibold flex items-center gap-1";
+                document.getElementById('hudProfile').innerText = `NACA ${currentNacaCode}`;
+            } else {
+                validTag.innerHTML = `<i class="fa-solid fa-xmark"></i> Invalid`;
+                validTag.className = "absolute right-2 top-2.5 text-[10px] text-red-400 font-semibold flex items-center gap-1";
+            }
+
+            updateCalculationsAndCharts();
+        }
+
+        function parseNacaCode(code) {
+            const N = 80;
+            airfoilUpper = [];
+            airfoilLower = [];
+            airfoilCamber = [];
+
+            // 1. NACA 4-Digit (e.g. 2412, 0015)
+            if (/^\d{4}$/.test(code)) {
+                const m = parseInt(code[0]) / 100;
+                const p = parseInt(code[1]) / 10;
+                const t = parseInt(code.substring(2)) / 100;
+
+                for (let i = 0; i <= N; i++) {
+                    const x = (1 - Math.cos((i / N) * Math.PI)) / 2;
+                    const yt = 5 * t * (0.2969 * Math.sqrt(x) - 0.1260 * x - 0.3516 * x**2 + 0.2843 * x**3 - 0.1015 * x**4);
+                    
+                    let yc = 0, dyc_dx = 0;
+                    if (p > 0) {
+                        if (x < p) {
+                            yc = (m / (p * p)) * (2 * p * x - x * x);
+                            dyc_dx = (2 * m / (p * p)) * (p - x);
+                        } else {
+                            yc = (m / ((1 - p) ** 2)) * ((1 - 2 * p) + 2 * p * x - x * x);
+                            dyc_dx = (2 * m / ((1 - p) ** 2)) * (p - x);
+                        }
+                    }
+
+                    const theta = Math.atan(dyc_dx);
+                    airfoilUpper.push({ x: x - yt * Math.sin(theta), y: yc + yt * Math.cos(theta) });
+                    airfoilLower.push({ x: x + yt * Math.sin(theta), y: yc - yt * Math.cos(theta) });
+                    airfoilCamber.push({ x: x, y: yc });
+                }
+                return true;
+            }
+
+            // 2. NACA 5-Digit (e.g. 23012, 24015)
+            if (/^\d{5}$/.test(code)) {
+                const t = parseInt(code.substring(3)) / 100;
+                const p = parseInt(code[1]) * 0.05;
+                const k1 = 15.893;
+
+                for (let i = 0; i <= N; i++) {
+                    const x = (1 - Math.cos((i / N) * Math.PI)) / 2;
+                    const yt = 5 * t * (0.2969 * Math.sqrt(x) - 0.1260 * x - 0.3516 * x**2 + 0.2843 * x**3 - 0.1015 * x**4);
+                    
+                    let yc = 0, dyc_dx = 0;
+                    if (x < p) {
+                        yc = (k1 / 6) * (x**3 - 3*p*x**2 + p**2*(3-p)*x);
+                        dyc_dx = (k1 / 6) * (3*x**2 - 6*p*x + p**2*(3-p));
+                    } else {
+                        yc = (k1 * p**3 / 6) * (1 - x);
+                        dyc_dx = - (k1 * p**3 / 6);
+                    }
+
+                    const theta = Math.atan(dyc_dx);
+                    airfoilUpper.push({ x: x - yt * Math.sin(theta), y: yc + yt * Math.cos(theta) });
+                    airfoilLower.push({ x: x + yt * Math.sin(theta), y: yc - yt * Math.cos(theta) });
+                    airfoilCamber.push({ x: x, y: yc });
+                }
+                return true;
+            }
+
+            // 3. NACA 6-Series (e.g. 63-210, 64-412, 65215)
+            const sixPattern = /^6\d[\- ]?\d{3}$/;
+            if (sixPattern.test(code)) {
+                const clean = code.replace(/[\- ]/g, '');
+                const t = parseInt(clean.substring(3)) / 100;
+
+                for (let i = 0; i <= N; i++) {
+                    const x = (1 - Math.cos((i / N) * Math.PI)) / 2;
+                    const yt = 5 * t * (0.2969 * Math.sqrt(x) - 0.08 * x - 0.35 * x**2 + 0.18 * x**3 - 0.05 * x**4);
+                    const yc = 0.018 * Math.sin(Math.PI * Math.pow(x, 0.85));
+                    const dyc_dx = 0.018 * Math.PI * 0.85 * Math.pow(x, -0.15) * Math.cos(Math.PI * Math.pow(x, 0.85));
+
+                    const theta = Math.atan(dyc_dx || 0);
+                    airfoilUpper.push({ x: x - yt * Math.sin(theta), y: yc + yt * Math.cos(theta) });
+                    airfoilLower.push({ x: x + yt * Math.sin(theta), y: yc - yt * Math.cos(theta) });
+                    airfoilCamber.push({ x: x, y: yc });
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        function updateFlowParams() {
+            alpha = parseFloat(document.getElementById('inputAoA').value);
+            vInf = parseFloat(document.getElementById('inputVel').value);
+            reynolds = parseFloat(document.getElementById('inputRe').value) * 1e6;
+
+            document.getElementById('valAoA').innerHTML = alpha.toFixed(1) + '&deg;';
+            document.getElementById('valVel').innerText = vInf + ' m/s';
+            document.getElementById('valRe').innerText = (reynolds / 1e6).toFixed(1) + 'e6';
+
+            updateCalculationsAndCharts();
+        }
+
+        function updateCalculationsAndCharts() {
+            const radAlpha = (alpha * Math.PI) / 180;
+            
+            let maxCamber = 0;
+            airfoilCamber.forEach(pt => { if (Math.abs(pt.y) > maxCamber) maxCamber = Math.abs(pt.y); });
+
+            // Tunnel Constriction Boost Factor
+            const tunnelFactor = isWindTunnel ? 1.15 : 1.0;
+            const effectiveV = vInf * tunnelFactor;
+
+            const Cl_ideal = 2 * Math.PI * (radAlpha + 2 * maxCamber);
+            
+            let stallFactor = 1.0;
+            if (alpha > 12) stallFactor = Math.max(0.2, 1.0 - Math.pow((alpha - 12) / 8, 2));
+            else if (alpha < -12) stallFactor = Math.max(0.2, 1.0 - Math.pow((-alpha - 12) / 8, 2));
+
+            const Cl = Cl_ideal * stallFactor * (isWindTunnel ? 1.08 : 1.0);
+            const Cd0 = 0.006 + 0.01 * Math.pow(maxCamber, 2);
+            const Cd = (Cd0 + Math.pow(Cl, 2) / (Math.PI * 8.5)) * (isWindTunnel ? 1.12 : 1.0);
+            const LdRatio = Cd > 0 ? (Cl / Cd) : 0;
+
+            const rho = 1.225;
+            const q = 0.5 * rho * effectiveV * effectiveV;
+            const liftForce = Cl * q;
+            const dragForce = Cd * q;
+
+            const Xcp = 0.25 - (0.1 * (Cl - 0.2));
+            const Cm = -0.05 - 0.2 * maxCamber;
+
+            document.getElementById('hudCl').innerText = Cl.toFixed(3);
+            document.getElementById('hudCd').innerText = Cd.toFixed(4);
+            document.getElementById('hudLd').innerText = LdRatio.toFixed(1);
+
+            document.getElementById('calcLift').innerText = liftForce.toFixed(1) + ' N/m';
+            document.getElementById('calcDrag').innerText = dragForce.toFixed(2) + ' N/m';
+            document.getElementById('calcXcp').innerText = Xcp.toFixed(3) + ' c';
+            document.getElementById('calcCm').innerText = Cm.toFixed(3);
+
+            updateChartsData(Cl, maxCamber);
+        }
+
+        // Potential Flow & Tunnel Boundary Evaluator
+        function getFlowVelocityAt(x, y) {
+            const radAlpha = (alpha * Math.PI) / 180;
+            const tunnelSpeed = isWindTunnel ? vInf * 1.12 : vInf;
+            
+            let u = tunnelSpeed * Math.cos(radAlpha);
+            let v = tunnelSpeed * Math.sin(radAlpha);
+
+            const rx = x - 0.25;
+            const ry = y;
+            const r2 = rx * rx + ry * ry + 0.001;
+
+            let maxCamber = 0;
+            airfoilCamber.forEach(pt => { if (Math.abs(pt.y) > maxCamber) maxCamber = Math.abs(pt.y); });
+            const gamma = 0.5 * tunnelSpeed * Math.PI * (radAlpha + 2 * maxCamber);
+
+            u += (gamma * ry) / (2 * Math.PI * r2);
+            v -= (gamma * rx) / (2 * Math.PI * r2);
+
+            // Wind Tunnel Top/Bottom Wall Bounding Constraint
+            if (isWindTunnel) {
+                const wallDist = 0.45;
+                if (Math.abs(y) > wallDist - 0.05) {
+                    v *= 0.1; // Bounded stream lines
+                }
+            }
+
+            const speed = Math.sqrt(u * u + v * v);
+            const cp = 1 - (speed * speed) / (tunnelSpeed * tunnelSpeed);
+
+            return { u, v, speed, cp };
+        }
+
+        function initParticles() {
+            particles.length = 0;
+            for (let i = 0; i < NUM_PARTICLES; i++) {
+                particles.push({
+                    x: (Math.random() * 2.5) - 0.8,
+                    y: (Math.random() * 1.0) - 0.5,
+                    life: Math.random() * 100,
+                    history: []
+                });
+            }
+        }
+
+        let canvas, ctx;
+        function initCanvas() {
+            canvas = document.getElementById('flowCanvas');
+            ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+            });
+
+            window.addEventListener('mouseup', () => isDragging = false);
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    panX += e.clientX - lastMouseX;
+                    panY += e.clientY - lastMouseY;
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                }
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                zoom *= e.deltaY < 0 ? 1.1 : 0.9;
+                zoom = Math.max(0.4, Math.min(zoom, 4.0));
+            });
+        }
+
+        function resetZoom() {
+            panX = 0; panY = 0; zoom = 1.0;
+        }
+
+        function worldToScreen(wx, wy) {
+            const scale = Math.min(canvas.width, canvas.height) * 0.55 * zoom;
+            const cx = canvas.width / 2 + panX;
+            const cy = canvas.height / 2 + panY;
+            return { x: cx + (wx - 0.35) * scale, y: cy - wy * scale };
+        }
+
+        function renderLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const showHeatmap = document.getElementById('chkHeatmap').checked;
+            const showStreamlines = document.getElementById('chkStreamlines').checked;
+            const showParticles = document.getElementById('chkParticles').checked;
+            const showVectors = document.getElementById('chkVectors').checked;
+
+            // 1. Heatmap Field
+            if (showHeatmap) {
+                const gridX = 42, gridY = 24;
+                const cellW = canvas.width / gridX, cellH = canvas.height / gridY;
+
+                for (let i = 0; i < gridX; i++) {
+                    for (let j = 0; j < gridY; j++) {
+                        const px = i * cellW + cellW / 2, py = j * cellH + cellH / 2;
+                        const scale = Math.min(canvas.width, canvas.height) * 0.55 * zoom;
+                        const cx = canvas.width / 2 + panX, cy = canvas.height / 2 + panY;
+                        
+                        const wx = (px - cx) / scale + 0.35;
+                        const wy = -(py - cy) / scale;
+
+                        const flow = getFlowVelocityAt(wx, wy);
+                        const norm = Math.max(0, Math.min(1, (flow.cp + 1.2) / 2.2));
+
+                        const r = Math.round(Math.min(255, Math.max(0, (norm - 0.5) * 2 * 255)));
+                        const g = Math.round(Math.min(255, Math.max(0, (1 - Math.abs(norm - 0.5) * 2) * 200)));
+                        const b = Math.round(Math.min(255, Math.max(0, (0.5 - norm) * 2 * 255)));
+
+                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.16)`;
+                        ctx.fillRect(i * cellW, j * cellH, cellW + 1, cellH + 1);
+                    }
+                }
+            }
+
+            // 2. Wind Tunnel Wall Render
+            if (isWindTunnel) {
+                const topWall = worldToScreen(0, 0.45);
+                const botWall = worldToScreen(0, -0.45);
+
+                // Upper Wall
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+                ctx.fillRect(0, 0, canvas.width, topWall.y);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, topWall.y); ctx.lineTo(canvas.width, topWall.y);
+                ctx.stroke();
+
+                // Lower Wall
+                ctx.fillRect(0, botWall.y, canvas.width, canvas.height - botWall.y);
+                ctx.beginPath();
+                ctx.moveTo(0, botWall.y); ctx.lineTo(canvas.width, botWall.y);
+                ctx.stroke();
+
+                // Honeycomb Flow Injector Lines
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+                ctx.lineWidth = 1;
+                for (let y = topWall.y; y <= botWall.y; y += 15) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y); ctx.lineTo(25, y);
+                    ctx.stroke();
+                }
+            }
+
+            // 3. Vector Grid
+            if (showVectors) {
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+                ctx.lineWidth = 1;
+
+                for (let x = -0.6; x <= 1.3; x += 0.12) {
+                    for (let y = -0.4; y <= 0.4; y += 0.12) {
+                        const flow = getFlowVelocityAt(x, y);
+                        const p1 = worldToScreen(x, y);
+                        const arrowLen = 12 * (flow.speed / vInf);
+                        const angle = Math.atan2(-flow.v, flow.u);
+
+                        ctx.beginPath();
+                        ctx.moveTo(p1.x, p1.y);
+                        ctx.lineTo(p1.x + arrowLen * Math.cos(angle), p1.y + arrowLen * Math.sin(angle));
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // 4. Streamlines
+            if (showStreamlines) {
+                ctx.lineWidth = 1;
+                const yBound = isWindTunnel ? 0.4 : 0.55;
+                for (let yStart = -yBound; yStart <= yBound; yStart += 0.08) {
+                    ctx.strokeStyle = isWindTunnel ? 'rgba(245, 158, 11, 0.25)' : 'rgba(56, 189, 248, 0.2)';
+                    ctx.beginPath();
+
+                    let currX = -0.8, currY = yStart;
+                    let pt = worldToScreen(currX, currY);
+                    ctx.moveTo(pt.x, pt.y);
+
+                    for (let step = 0; step < 75; step++) {
+                        const flow = getFlowVelocityAt(currX, currY);
+                        const dt = 0.02;
+                        currX += (flow.u / vInf) * dt;
+                        currY += (flow.v / vInf) * dt;
+
+                        pt = worldToScreen(currX, currY);
+                        ctx.lineTo(pt.x, pt.y);
+                    }
+                    ctx.stroke();
+                }
+            }
+
+            // 5. Particles
+            if (showParticles) {
+                const dt = 0.015;
+                particles.forEach(p => {
+                    const flow = getFlowVelocityAt(p.x, p.y);
+                    
+                    p.x += (flow.u / vInf) * dt * (vInf / 40);
+                    p.y += (flow.v / vInf) * dt * (vInf / 40);
+                    p.life += 1;
+
+                    p.history.push({ ...worldToScreen(p.x, p.y) });
+                    if (p.history.length > 7) p.history.shift();
+
+                    if (p.x > 1.5 || p.y < -0.6 || p.y > 0.6 || p.life > 160) {
+                        p.x = -0.8;
+                        p.y = (Math.random() * (isWindTunnel ? 0.8 : 1.2)) - (isWindTunnel ? 0.4 : 0.6);
+                        p.life = 0;
+                        p.history = [];
+                    }
+
+                    if (p.history.length > 1) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.history[0].x, p.history[0].y);
+                        for (let k = 1; k < p.history.length; k++) {
+                            ctx.lineTo(p.history[k].x, p.history[k].y);
+                        }
+                        
+                        ctx.strokeStyle = isWindTunnel ? 'rgba(251, 191, 36, 0.5)' : 'rgba(56, 189, 248, 0.5)';
+                        ctx.lineWidth = 1.8;
+                        ctx.stroke();
+                    }
+                });
+            }
+
+            // 6. Airfoil Shape Render
+            if (airfoilUpper.length > 0) {
+                const radAlpha = (alpha * Math.PI) / 180;
+                
+                const rotatePt = (pt) => {
+                    const rx = pt.x - 0.25;
+                    const ry = pt.y;
+                    const xRot = rx * Math.cos(-radAlpha) - ry * Math.sin(-radAlpha) + 0.25;
+                    const yRot = rx * Math.sin(-radAlpha) + ry * Math.cos(-radAlpha);
+                    return worldToScreen(xRot, yRot);
+                };
+
+                ctx.beginPath();
+                const p0 = rotatePt(airfoilUpper[0]);
+                ctx.moveTo(p0.x, p0.y);
+
+                for (let i = 1; i < airfoilUpper.length; i++) {
+                    const p = rotatePt(airfoilUpper[i]);
+                    ctx.lineTo(p.x, p.y);
+                }
+                for (let i = airfoilLower.length - 1; i >= 0; i--) {
+                    const p = rotatePt(airfoilLower[i]);
+                    ctx.lineTo(p.x, p.y);
+                }
+                ctx.closePath();
+
+                ctx.fillStyle = '#030712';
+                ctx.fill();
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 9 } } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 9 } } }
+                }
+            };
+
+            cpChartInstance = new Chart(document.getElementById('cpChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: Array.from({length: 20}, (_, i) => (i/19).toFixed(2)), datasets: [{ borderColor: '#38bdf8', borderWidth: 1.5, data: [], pointRadius: 0 }, { borderColor: '#f97316', borderWidth: 1.5, data: [], pointRadius: 0 }] },
+                options: { ...chartOptions, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, reverse: true } } }
+            });
+
+            velChartInstance = new Chart(document.getElementById('velChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: Array.from({length: 20}, (_, i) => (i/19).toFixed(2)), datasets: [{ borderColor: '#10b981', borderWidth: 1.5, data: [], pointRadius: 0 }] },
+                options: chartOptions
+            });
+
+            const alphaRange = Array.from({length: 21}, (_, i) => -10 + i);
+            clAlphaChartInstance = new Chart(document.getElementById('clAlphaChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: alphaRange, datasets: [{ borderColor: '#a855f7', borderWidth: 1.5, data: [], pointRadius: 0 }, { backgroundColor: '#ef4444', radius: 5, data: [] }] },
+                options: chartOptions
+            });
+
+            polarChartInstance = new Chart(document.getElementById('polarChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ borderColor: '#eab308', borderWidth: 1.5, data: [], pointRadius: 0 }] },
+                options: chartOptions
+            });
+        }
+
+        function updateChartsData(currentCl, maxCamber) {
+            if (!cpChartInstance) return;
+
+            const xVals = Array.from({length: 20}, (_, i) => i / 19);
+            const upperCp = [], lowerCp = [], velRatio = [];
+
+            xVals.forEach(x => {
+                const radAlpha = (alpha * Math.PI) / 180;
+                const cpUp = -1.2 * Math.sin(Math.PI * x) * (1 + radAlpha) - (currentCl * 0.5);
+                const cpLow = 0.6 * Math.sin(Math.PI * x) - (currentCl * 0.2);
+                
+                upperCp.push(cpUp);
+                lowerCp.push(cpLow);
+                velRatio.push(Math.sqrt(Math.max(0, 1 - cpUp)));
+            });
+
+            cpChartInstance.data.datasets[0].data = upperCp;
+            cpChartInstance.data.datasets[1].data = lowerCp;
+            cpChartInstance.update();
+
+            velChartInstance.data.datasets[0].data = velRatio;
+            velChartInstance.update();
+
+            const alphaRange = Array.from({length: 21}, (_, i) => -10 + i);
+            const clCurve = alphaRange.map(a => {
+                const r = (a * Math.PI) / 180;
+                let factor = 1.0;
+                if (a > 12) factor = Math.max(0.2, 1.0 - Math.pow((a - 12) / 8, 2));
+                if (a < -12) factor = Math.max(0.2, 1.0 - Math.pow((-a - 12) / 8, 2));
+                return 2 * Math.PI * (r + 2 * maxCamber) * factor;
+            });
+
+            clAlphaChartInstance.data.datasets[0].data = clCurve;
+            const currentIdx = alphaRange.indexOf(Math.round(alpha));
+            const markerData = new Array(21).fill(null);
+            if (currentIdx !== -1) markerData[currentIdx] = currentCl;
+            clAlphaChartInstance.data.datasets[1].data = markerData;
+            clAlphaChartInstance.update();
+
+            const cdCurve = clCurve.map(cl => 0.006 + Math.pow(cl, 2) / (Math.PI * 8.5));
+            polarChartInstance.data.labels = cdCurve.map(cd => cd.toFixed(3));
+            polarChartInstance.data.datasets[0].data = clCurve;
+            polarChartInstance.update();
+        }
+    </script>
+</body>
+</html>
